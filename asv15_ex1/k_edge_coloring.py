@@ -57,21 +57,28 @@ def get_k_edge_coloring(k, V, E):
     # every adjacent edge has different color
     for v in V:
         for c in colors:
-            conds = []
-            relevant_edges = filter(lambda (v1, v2): v1 == v or v2 == v, E)
-            #if len(relevant_edges) < 2:
-            #    continue
-            if len(relevant_edges) > 1:
-                s.add(Or([Not(variables[(v1, v2)][c]) for v1, v2 in relevant_edges]))
 
-            #for v1, v2 in relevant_edges:
-            #    print "Adding edge " + str((v1, v2)) + " with color " + str(c)
-            #    conds.append(Not(variables[(v1, v2)][c]))
-            #s.add(Or(conds))
-    #for v1, v2 in E:
-    #    for c in colors:
-    #        s.add(Or(Not(variables[v1][c]),
-    #                 Not(variables[v2][c])))
+            # Get the list of all edges covering this node
+            relevant_edges = filter(lambda (v1, v2): v1 == v or v2 == v, E)
+
+            # Only create rules when there is more than a single edge covering this node
+            if len(relevant_edges) > 1:
+                # What we want here is a boolean formula that would allow at most one edge of the
+                # same color within the list of all edges covering the current node.
+                # For translating such constraint to boolean form, we would add a constraint that
+                # each pair of edges within the list does not have the same color. For example,
+                # if E1, E2 and E3 all have a common node V, the constrains would be:
+                # (Or(Not(E1, c), Not(E2, c)), (Or(Not(E1, c), Not(E3, c)), (Or(Not(E2, c), Not(E3, c))
+                for v1, v2 in relevant_edges:
+                    # TODO: This naive solution probably creates some duplicates, can we cut them down?
+                    for v1_tag, v2_tag in relevant_edges:
+
+                        # Do not add constraint for the same edge
+                        if (v1, v2) == (v1_tag, v2_tag):
+                            continue
+
+                        s.add(Or(Not(variables[(v1, v2)][c]),
+                                 Not(variables[(v1_tag, v2_tag)][c])))
 
     print "Solver is:"
     print s
@@ -130,14 +137,18 @@ def draw_graph(V, E, coloring={}, filename='graph', engine='circo', directed=Fal
     dot.render(filename, cleanup=True, view=True)
 
 
-if __name__ == '__main__':
-    c = get_k_edge_coloring(3, simple_V, simple_E)
-    if c != None:
-        draw_graph(simple_V, simple_E, c, 'simple')
+def test_graph(V, E, k, graph_name):
+    c = get_k_edge_coloring(k, V, E)
+    if c is not None:
+        draw_graph(V, E, c, '{}_{}_colors'.format(graph_name, k))
     else:
-        print "No coloring"
+        print 'No coloring found for graph ' + graph_name + ' with ' + str(k) + ' colors'
 
-    #c = get_k_edge_coloring(3, Petersen_V, Petersen_E)
-    #draw_graph(Petersen_V, Petersen_E, c, 'Petersen')
+
+if __name__ == '__main__':
+    test_graph(simple_V, simple_E, 2, 'simple')
+    test_graph(simple_V, simple_E, 3, 'simple')
+    test_graph(Petersen_V, Petersen_E, 3, 'petersen')
+    test_graph(Petersen_V, Petersen_E, 4, 'petersen')
 
     pass

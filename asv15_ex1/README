@@ -5,7 +5,8 @@ chosen color.
 
 Each edge in E (v1, v2) must have at least one color
 Each edge in E (v1, v2) must have at most one color
-Neighbor edges do not have the same color. Meaning: for each edge and color (v1, v2, c), there cannot be:
-(v1', v2, c)
-(v1, v2', c)
-In other words, for each (node v1, color), there can either be (v1, v2, c)
+Neighbor edges do not have the same color. Meaning: for each node V and color C, the list of edges that cover
+ V can have at most one of (e, c) that is TRUE.
+
+Translation of a boolean formula for "at most one is true" requires breaking down this list to pairs, making
+ sure that each pair does not have the same color
