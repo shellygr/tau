@@ -1,0 +1,11 @@
+K-edge-coloring:
+In SAT terms, it means we must create boolean formulas to satisfy the coloring requirements.
+We are representing our coloring using 3-variable tuples: (v1, v2, c), where (v1, v2) is the edge and c is the
+chosen color.
+
+Each edge in E (v1, v2) must have at least one color
+Each edge in E (v1, v2) must have at most one color
+Neighbor edges do not have the same color. Meaning: for each edge and color (v1, v2, c), there cannot be:
+(v1', v2, c)
+(v1, v2', c)
+
