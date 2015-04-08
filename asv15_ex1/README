@@ -8,4 +8,4 @@ Each edge in E (v1, v2) must have at most one color
 Neighbor edges do not have the same color. Meaning: for each edge and color (v1, v2, c), there cannot be:
 (v1', v2, c)
 (v1, v2', c)
-
+In other words, for each (node v1, color), there can either be (v1, v2, c)

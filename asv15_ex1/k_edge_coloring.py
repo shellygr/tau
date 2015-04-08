@@ -2,7 +2,6 @@
 k-edge-coloring exercise.
 """
 from z3 import *
-#import pydot
 
 Petersen_V = range(10)
 Petersen_E = [
@@ -37,25 +36,38 @@ simple_E = [
 def get_k_edge_coloring(k, V, E):
     assert V == range(len(V))
     colors = range(k)
-    variables = [[Bool('v_{}_v_{}_color_{}'.format(v1, v2, c)) for c in colors] for v1, v2 in E]
-    for v in variables:
-        print v
+
+    variables = {}
+    for v1, v2 in E:
+        variables[(v1, v2)] = [Bool('v_{}_v_{}_color_{}'.format(v1, v2, c)) for c in colors]
 
     s = Solver()
 
     # every edge has at least one color
     for v1, v2 in E:
-        print "Edge {}_{}".format(v1, v2)
-        s.add(Or([variables[v1][v2][c] for c in colors]))
+        s.add(Or([variables[(v1, v2)][c] for c in colors]))
 
     # every edge has at most one color
-    for v in V:
+    for v1, v2 in E:
         for c1 in range(k):
             for c2 in range(c1 + 1, k):
-                s.add(Or(Not(variables[v][c1]),
-                         Not(variables[v][c2])))
+                s.add(Or(Not(variables[(v1, v2)][c1]),
+                         Not(variables[(v1, v2)][c2])))
 
-    # every edge connects nodes with different colors
+    # every adjacent edge has different color
+    for v in V:
+        for c in colors:
+            conds = []
+            relevant_edges = filter(lambda (v1, v2): v1 == v or v2 == v, E)
+            #if len(relevant_edges) < 2:
+            #    continue
+            if len(relevant_edges) > 1:
+                s.add(Or([Not(variables[(v1, v2)][c]) for v1, v2 in relevant_edges]))
+
+            #for v1, v2 in relevant_edges:
+            #    print "Adding edge " + str((v1, v2)) + " with color " + str(c)
+            #    conds.append(Not(variables[(v1, v2)][c]))
+            #s.add(Or(conds))
     #for v1, v2 in E:
     #    for c in colors:
     #        s.add(Or(Not(variables[v1][c]),
@@ -78,10 +90,10 @@ def get_k_edge_coloring(k, V, E):
         print "SAT, Found K coloring"
         m = s.model()
         coloring = dict()
-        for v in V:
+        for v1, v2 in E:
             for c in colors:
-                if is_true(m[variables[v][c]]):
-                    coloring[v] = c
+                if is_true(m[variables[(v1, v2)][c]]):
+                    coloring[(v1, v2)] = c
                     break
         return coloring
 
@@ -120,11 +132,12 @@ def draw_graph(V, E, coloring={}, filename='graph', engine='circo', directed=Fal
 
 if __name__ == '__main__':
     c = get_k_edge_coloring(3, simple_V, simple_E)
-    draw_graph(simple_V, simple_E, c, 'simple')
+    if c != None:
+        draw_graph(simple_V, simple_E, c, 'simple')
+    else:
+        print "No coloring"
 
     #c = get_k_edge_coloring(3, Petersen_V, Petersen_E)
     #draw_graph(Petersen_V, Petersen_E, c, 'Petersen')
-    #
-    # Your tests here...
-    #
+
     pass
