@@ -10,3 +10,47 @@ Neighbor edges do not have the same color. Meaning: for each node V and color C,
 
 Translation of a boolean formula for "at most one is true" requires breaking down this list to pairs, making
  sure that each pair does not have the same color
+
+planning:
+In SMT terms, we formulate the problem using predicates and constrains.
+at(package p, city c, time t) --> BOOL - predicate that means package p is at city c in time t
+on(package p, airplane a, time t) --> BOOL - predicate that means package p is loaded on airplane a in time t
+loc(airplane a, time t) --> city c - function that returns airplane a location in time t
+move(airplane a, time t) := loc(a, t) != loc(a, t+1)
+load(package p, airplane a, time t) := !move(a, t) and At(p,loc(a,t),t)
+unload(package p, city c, airplane a, time t) := !move(a, t) and on(p,a,t) and loc(a, t) = c
+(can we get rid of the airplane parameter for "unload"? we could add a constraint for checking
+if the airplane carrying package p is at the city, but we need to understand what would be easier
+to write)
+
+We will need the following constraints:
+A package cannot be both on an airplane and in a city at the same time. Meaning:
+for all time t
+  for all package p
+    (exists city c'
+      at(p, c', t)
+      and
+      for all city c
+        c = c' or not at(p, c, t))
+      and
+      for all airplane a
+        not on(p, a, t)
+    or
+    (exists airplane a'
+      on(p, a', t)
+      and
+      for all airplane a
+        a = a' or not on(p, a, t))
+      and
+      for all city c
+        not at(p, c, t)
+
+All packages start at their source cities, all packages end at their destination cities
+for all p
+  at(p, src(p), 0)
+
+exists t'
+  for all p
+    at(p, dst(p), t')
+    and
+    for all t (t<t') not for all p at(p, dst(p), t)
