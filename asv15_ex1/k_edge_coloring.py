@@ -24,6 +24,26 @@ Petersen_E = [
     (8 , 5),
  ]
 
+Petersen2_V = range(10)
+Petersen2_E = [
+    (0 , 1),
+    (1 , 2),
+    (3 , 4),
+    (4 , 0),
+
+    (1 , 6),
+    (2 , 7),
+    (3 , 8),
+    (4 , 9),
+
+    (5 , 7),
+    (7 , 9),
+    (9 , 6),
+    (6 , 8),
+    (8 , 5)
+ ]
+
+
 simple_V = [0, 1, 2, 3]
 simple_E = [
     (0, 1),
@@ -155,6 +175,8 @@ def get_k_edge_coloring_core(k, V, E):
                             if E[i] == (v1, v2):
                                 cur_edge = i
 
+                        # We should always find a matching edge
+                        assert cur_edge != -1
 
                         s.add(Or(Not(variables[(v1, v2)][c]),
                                  Not(variables[(v1_tag, v2_tag)][c]),
@@ -219,7 +241,7 @@ def draw_graph(V, E, coloring={}, filename='graph', engine='circo', directed=Fal
 def test_graph(V, E, k, graph_name):
     c = get_k_edge_coloring_core(k, V, E)
     if c is not None:
-        draw_graph(V, E, c, '{}_{}_colors'.format(graph_name, k))
+        draw_graph(V, E, c, './output/{}_{}_colors'.format(graph_name, k))
     else:
         print 'No coloring found for graph ' + graph_name + ' with ' + str(k) + ' colors'
 
@@ -230,9 +252,9 @@ if __name__ == '__main__':
     # Solvable
     test_graph(simple_V, simple_E, 3, 'simple')
     # Impossible
-    test_graph(Petersen_V, Petersen_E, 3, 'petersen')
+    test_graph(Petersen2_V, Petersen2_E, 3, 'petersen2')
     # Solvable
-    test_graph(Petersen_V, Petersen_E, 4, 'petersen')
+    test_graph(Petersen2_V, Petersen2_E, 4, 'petersen2')
     # TODO: More tests. Is the core functionality working?
 
     pass
