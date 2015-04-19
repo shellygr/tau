@@ -132,24 +132,27 @@ def get_transport_plan(nc, np, na, src, dst, start):
 
     # Rule of Movement
     s.add(ForAll[p], ForAll[a], ForAll[t],
-          Implies(And(load(p, a, t), And(move(a, t+1), Exists[c0], unload(p, c0, a, t+2)),
-                      And(at(p, c0, t+2), ForAll[c], Implies(at(p, c, t+2), c == c0)))))
+          And(Implies(And(load(p, a, t), move(a, t+1)), Exists[c0], unload(p, c0, a, t+2)),
+              Implies(at(p, c0, t+2), ForAll[c], Implies(at(p, c, t+2), c == c0))))
 
     # At any time for any package there exists one and only airplane/city where it is located on/at.
     s.add(ForAll[t], ForAll[p],
-          Or(And(Exists[c0], at(p, c0, t), Implies(ForAll[c]), at(p, c, t), c == c0),
-          And(Exists[a0], on(p, a0, t), Implies(ForAll[a], on(p, a, t), a == a0))))
+          Or(And(ForAll[a], Not(on(p, a, t)), Exists[c0], at(p, c0, t), Implies(ForAll[c]), at(p, c, t), c == c0),
+             And(ForAll[c], Not(at(c, a, t)), Exists[a0], on(p, a0, t), Implies(ForAll[a], on(p, a, t), a == a0))))
 
     # All packages start at their source cities
     s.add(a1 != a2)
     s.add(p1 != p2 != p3)
     s.add(c1 != c2 != c3 != c4)
-    s.add(at(p1, c3, 0))
-    s.add(at(p2, c2, 0))
-    s.add(at(p3, c1, 0))
+    s.add(at(p1, c1, 0))
+    s.add(at(p2, c4, 0))
+    s.add(at(p3, c3, 0))
 
     # There exists a time where all packages end at their destination cities and it is minimal
-
+    s.add(at(p1, c3, t))
+    s.add(at(p2, c2, t))
+    s.add(at(p3, c1, t))
+    s.add(Implies(Exists[t0], And(at(p1, c3, t0), at(p2, c2, t0), at(p3, c1, t0)), t0 >= t))  # assert FV[f] == t
     pass
 
 
