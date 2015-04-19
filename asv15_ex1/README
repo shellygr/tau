@@ -16,6 +16,8 @@ In SMT terms, we formulate the problem using predicates and constrains.
 at(package p, city c, time t) --> BOOL - predicate that means package p is at city c in time t
 on(package p, airplane a, time t) --> BOOL - predicate that means package p is loaded on airplane a in time t
 loc(airplane a, time t) --> city c - function that returns airplane a location in time t
+ForAll(airplane a) ForAll(time t) or(Exists(city c')and(loc(a, t)=c',ForAll(city c) implies(loc(a,t)=c, c=c')) ,move(a,t))
+ForAll(airplane a) ForAll(time t) implies(move(a,t), ForAll(city c) not loc(a,t)=c)
 move(airplane a, time t) := loc(a, t) != loc(a, t+1)
 load(package p, airplane a, time t) := !move(a, t) and At(p,loc(a,t),t)
 unload(package p, city c, airplane a, time t) := !move(a, t) and on(p,a,t) and loc(a, t) = c

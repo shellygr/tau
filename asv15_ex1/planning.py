@@ -1,6 +1,7 @@
 """
 Transport planning problem exercise.
 """
+from z3 import *
 
 
 example_problem = dict(
@@ -85,9 +86,47 @@ def print_plan(city_packages, city_airplanes, airplane_packages):
 
 
 def get_transport_plan(nc, np, na, src, dst, start):
-    #
-    # Your solution here...
-    #
+
+    # Declaring sorts
+    airplane = DeclareSort('A')
+    package = DeclareSort('P')
+    city = DeclareSort('C')
+    boolean = BoolSort()
+    time = IntSort()
+
+    # Declaring functions, predicates
+    loc = Function('loc', airplane, time, city)
+    at = Function('at', package, city, time, boolean)
+    on = Function('on', package, city, time, boolean)
+    move = Function('move', airplane, time, boolean)
+    load = Function('load', package, airplane, time, boolean) #:= !move(a, t) and At(p,loc(a,t),t)
+    unload = Function('unload', package, city, airplane, time, boolean) #:= !move(a, t) and on(p,a,t) and loc(a, t) = c
+
+    # Declaring consts
+    a, a1 = Consts('a a1', airplane)
+    c, c1 = Consts('c c1', city)
+    p, p1 = Consts('p p1', package)
+    t, t1 = Consts('t t1', time)
+
+    s = Solver()
+    # Defining Predicates and Functions
+    # move(airplane a, time t) := loc(a, t) != loc(a, t+1)
+    s.add(ForAll[a], ForAll[t], And(
+        Implies(move(a, t), loc(a, t) == loc(a, t+1)), Implies(loc(a, t) == loc(a, t+1), move(a, t))))
+
+    # load(package p, airplane a, time t) := !move(a, t) and At(p,loc(a,t),t)
+    s.add(ForAll[p], ForAll[a], ForAll[t],
+          And(Implies(load(p, a, t), And(Not(move(a, t)), at(p, loc(a, t), t))),
+          Implies(And(Not(move(a,t)), at(p, loc(a, t), t)), load(p, a, t))))
+
+    # unload(package p, city c, airplane a, time t) := !move(a, t) and on(p,a,t) and loc(a, t) = c
+    s.add(ForAll[p], ForAll[c], ForAll[a], ForAll[t],
+          And(Implies(unload(p, c, a, t), And(Not(move(a, t)), And(on(p, a, t), loc(a, t) == c))),
+          Implies(And(Not(move(a, t)), And(on(p, a, t), loc(a, t) == c)), unload(p, c, a, t))))
+
+    # Adding the Constraints
+    # Any plane must be present at one and only city at any time
+    s.add(ForAll[a], ForAll[t], Exists[c1], And(loc(a, t) == c1, ForAll[c], Implies(loc(a, t) == c, c == c1)))
     pass
 
 
