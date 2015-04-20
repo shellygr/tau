@@ -98,21 +98,17 @@ def get_transport_plan(nc, np, na, src, dst, start):
     on = Function('on', package, airplane, time, boolean)
     move = Function('move', airplane, time, boolean)
     load = Function('load', package, airplane, time, boolean)
-    unload = Function('unload', package, city, airplane, time, boolean)
+    unload = Function('unload', package, airplane, time, boolean)
 
     # Declaring consts
     t = Const('t', time)
-    #a, a0, a1, a2 = Consts('a a0 a1 a2', airplane)
-    #p, p0, p1, p2, p3 = Consts('p p0 p1 p2 p3', package)
-    #c, c_tag, c1, c2, c3, c4 = Consts('c c_tag c1 c2 c3 c4', city)
+    p = Const('p', package)
     cts = [Const('c{}'.format(idx), city) for idx in range(nc)]
     pks = [Const('p{}'.format(idx), package) for idx in range(np)]
     aps = [Const('a{}'.format(idx), airplane) for idx in range(na)]
 
-
-    a, a_tag = Consts('a a0', airplane)
+    a, a_tag = Consts('a a_tag', airplane)
     c, c_tag = Consts('c c_tag', city)
-    p = Consts('p', package)
 
     # Defining Predicates and Functions
     s = Solver()
@@ -135,32 +131,59 @@ def get_transport_plan(nc, np, na, src, dst, start):
 
     # move(airplane a, time t) := loc(a, t) != loc(a, t+1)
     s.add(ForAll([a], ForAll([t],
-          And(Implies(move(a, t), loc(a, t) == loc(a, t + 1)), Implies(loc(a, t) == loc(a, t + 1), move(a, t))))))
-
-    # load(package p, airplane a, time t) := !move(a, t) and At(p,loc(a,t),t)
-    s.add(ForAll([p], ForAll([a], ForAll([t],
-          And(Implies(load(p, a, t), And(Not(move(a, t)), at(p, loc(a, t), t))),
-              Implies(And(Not(move(a, t)), at(p, loc(a, t), t)), load(p, a, t)))))))
-''''
-    # unload(package p, city c, airplane a, time t) := !move(a, t) and on(p,a,t) and loc(a, t) = c
-    s.add(ForAll[p], ForAll[c], ForAll[a], ForAll[t],
-          And(Implies(unload(p, c, a, t), And(Not(move(a, t)), And(on(p, a, t), loc(a, t) == c))),
-              Implies(And(Not(move(a, t)), And(on(p, a, t), loc(a, t) == c)), unload(p, c, a, t))))
-
-    # Adding the Constraints
-    # Any plane must be present at one and only city at any time
-    s.add(ForAll[a], ForAll[t], Exists[c_tag], And(loc(a, t) == c_tag, ForAll[c], Implies(loc(a, t) == c, c == c_tag)))
-
-    # Rule of Movement
-    s.add(ForAll[p], ForAll[a], ForAll[t],
-          And(Implies(And(load(p, a, t), move(a, t + 1)), Exists[c_tag], unload(p, c_tag, a, t + 2)),
-              Implies(at(p, c_tag, t + 2), ForAll[c], Implies(at(p, c, t + 2), c == c_tag))))
+          And(
+              Implies(move(a, t), loc(a, t) == loc(a, t + 1)),
+              Implies(loc(a, t) == loc(a, t + 1), move(a, t))))))
 
     # At any time for any package there exists one and only airplane/city where it is located on/at.
-    s.add(ForAll[t], ForAll[p],
-          Or(And(ForAll[a], Not(on(p, a, t)), Exists[c_tag], at(p, c_tag, t), Implies(ForAll[c]), at(p, c, t), c == c_tag),
-             And(ForAll[c], Not(at(c, a, t)), Exists[a0], on(p, a0, t), Implies(ForAll[a], on(p, a, t), a == a0))))
+    s.add(ForAll([t], ForAll([p],
+                             Or(
+                                 And(
+                                     ForAll([a], Not(on(p, a, t))),
+                                     Exists([c_tag], And(
+                                         at(p, c_tag, t),
+                                         ForAll([c], Implies(at(p, c, t), c == c_tag))))),
+                                 And(
+                                     ForAll([c], Not(at(p, c, t))),
+                                     Exists([a_tag], And(
+                                         on(p, a_tag, t),
+                                         ForAll([a], Implies(on(p, a, t), a == a_tag)))))))))
 
+    # Any plane at any time must be present at one and only city
+    s.add(ForAll([a], ForAll([t], Exists([c_tag],
+                                         And(
+                                             loc(a, t) == c_tag,
+                                             ForAll([c], Implies(loc(a, t) == c, c == c_tag)))))))
+
+    # Rule of load: Airplane must be at the same city as the package and not move. Package must load to airplane at t+1.
+    s.add(ForAll([p], ForAll([a], ForAll([t],
+                                         And(
+                                             Implies(
+                                                 load(p, a, t),
+                                                 And(Not(move(a, t)), at(p, loc(a, t), t), on(p, a, t+1))),
+                                             Implies(
+                                                 And(Not(move(a, t)), at(p, loc(a, t), t), on(p, a, t+1)),
+                                                 load(p, a, t)))))))
+
+    # Rule of unload: Airplane must not move and hold a package. Package must unload to airplane's location at t+1.
+    s.add(ForAll([p], ForAll([a], ForAll([t],
+                                         And(
+                                             Implies(
+                                                 unload(p, a, t),
+                                                 And(Not(move(a, t)),
+                                                     on(p, a, t),
+                                                     at(p, loc(a, t), t+1))),
+                                             Implies(
+                                                 And(Not(move(a, t)),
+                                                     on(p, a, t),
+                                                     at(p, loc(a, t), t+1)),
+                                                 unload(p, a, t)))))))
+
+    # Rule of Movement: Any plane at any time must either move or load/unload any number of packages (but not both)
+    s.add(ForAll([a], ForAll([t], Xor(move(a, t), Exists([p], Or(load(p, a, t), unload(p, a, t)))))))
+
+
+"""
     # All packages start at their source cities
     s.add(a1 != a2)
     s.add(p1 != p2 != p3)
@@ -183,13 +206,11 @@ def get_transport_plan(nc, np, na, src, dst, start):
         print "Got unknown"
     else:
         print "UNSAT\n"
-
     city_packages = []
     city_airplanes = []
     airplane_packages = []
-
     return city_packages, city_airplanes, airplane_packages
-'''
+"""
 
 if __name__ == '__main__':
     print_problem(**example_problem)
