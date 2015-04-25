@@ -223,17 +223,20 @@ def get_transport_plan(nc, np, na, src, dst, start):
                     print "Package %d in city %d in time %d" % (np_idx, nc_idx, t)
                     city_packages[t][nc_idx].append(np_idx)
 
-            # Build city_airplanes and airplane_packages
+            # Build city_airplanes
             for na_idx in range(na):
                 airplane_packages[t].insert(na_idx, [])
 
                 if is_true(m.eval(loc(aps[na_idx], t) == cts[nc_idx])):
                     print "Airplane %d at city %d in time %d" % (na_idx, nc_idx, t)
                     city_airplanes[t][nc_idx].append(na_idx)
-                for np_idx in range(np):
-                    if is_true(m.eval(on(pks[np_idx], aps[na_idx], t))):
-                        print "Package %d on airplane %d in time %d" % (np_idx, na_idx, t)
-                        airplane_packages[t][na_idx].insert(np_idx, [])
+
+        # Build airplane_packages
+        for na_idx in range(na):
+            for np_idx in range(np):
+                if is_true(m.eval(on(pks[np_idx], aps[na_idx], t))):
+                    print "Package %d on airplane %d in time %d" % (np_idx, na_idx, t)
+                    airplane_packages[t][na_idx].append(np_idx)
 
     #pprint.pprint (city_packages)
     #pprint.pprint (airplane_packages)
