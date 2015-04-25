@@ -2,7 +2,7 @@
 Transport planning problem exercise.
 """
 from z3 import *
-
+import pprint
 
 example_problem = dict(
     nc=4,
@@ -84,7 +84,7 @@ def print_plan(city_packages, city_airplanes, airplane_packages):
     print
 
 
-def get_transport_plan(nc, np, na, src, dst, start, t_max=30):
+def get_transport_plan(nc, np, na, src, dst, start):
     # Declaring sorts
     airplane = DeclareSort('A')
     package = DeclareSort('P')
@@ -103,133 +103,145 @@ def get_transport_plan(nc, np, na, src, dst, start, t_max=30):
     # Declaring consts
     t = Const('t', time)
     p = Const('p', package)
-    c, c_tag = Consts('c c_tag', city)
-    a, a_tag = Consts('a a_tag', airplane)
-
     cts = [Const('c{}'.format(idx), city) for idx in range(nc)]
     pks = [Const('p{}'.format(idx), package) for idx in range(np)]
     aps = [Const('a{}'.format(idx), airplane) for idx in range(na)]
 
-    # Defining Predicates and Functions
-    s = Solver()
-    s.set(soft_timeout=900000)
+    a, a_tag = Consts('a a_tag', airplane)
+    c, c_tag = Consts('c c_tag', city)
 
-    # s.add(ForAll([t], And(t >= 0, t <= t_max)))
+    # Model
+    m = None
 
-    # All packages start at their source cities
-    for idx in range(np):
-        s.add(at(pks[idx], cts[src[idx]], 0))
+    # TODO: Calculate
+    t_max = 3
+    while m is None:
 
-    # All packages end at their destination cities
-    for idx in range(np):
-        s.add(at(pks[idx], cts[dst[idx]], t_max))
+        # Defining Predicates and Functions
+        s = Solver()
+        s.set(soft_timeout=60000)
 
-    # All airplanes must begin in their source cities
-    for idx in range(na):
-        s.add(loc(aps[idx], 0) == cts[start[idx]])
+        # s.add(ForAll([t], And(t >= 0, t <= t_max)))
 
-    # At t==0, no package is loaded on no airplane!
-    s.add(ForAll([p], ForAll([a], Not(on(p, a, 0)))))
+        # All packages start at their source cities
+        for idx in range(np):
+            s.add(at(pks[idx], cts[src[idx]], 0))
 
-    for idx in range(na):
-        for jdx in range(idx):
-            s.add(aps[idx] != aps[jdx])
+        # All packages end at their destination cities
+        for idx in range(np):
+            s.add(at(pks[idx], cts[dst[idx]], t_max))
 
-    for idx in range(nc):
-        for jdx in range(idx):
-            s.add(cts[idx] != cts[jdx])
+        # All airplanes must begin in their source cities
+        for idx in range(na):
+            s.add(loc(aps[idx], 0) == cts[start[idx]])
 
-    for idx in range(np):
-        for jdx in range(idx):
-            s.add(pks[idx] != pks[jdx])
+        # At t==0, no package is loaded on no airplane!
+        s.add(ForAll([p], ForAll([a], Not(on(p, a, 0)))))
 
-    # move(airplane a, time t) := loc(a, t) != loc(a, t+1)
-    for idx in range(na):
-        s.add(ForAll([t], move(aps[idx], t) == (loc(aps[idx], t) != loc(aps[idx], t + 1))))
+        for idx in range(na):
+            for jdx in range(idx):
+                s.add(aps[idx] != aps[jdx])
 
-    # Any plane at any time must be present at one and only city
-    for idx in range(na):
-        for jdx in range(nc):
-            s.add(ForAll([t], And(loc(aps[idx], t) == c_tag, Or(loc(aps[idx], t) != cts[jdx], cts[jdx] == c_tag))))
+        for idx in range(nc):
+            for jdx in range(idx):
+                s.add(cts[idx] != cts[jdx])
 
-    for idx in range(np):
-        for jdx in range(na):
-            for kdx in range(nc):
-                s.add(ForAll([t],
-                             Xor(
-                                 And(
-                                     Not(on(pks[idx], aps[jdx], t)),
-                                     And(Exists([c_tag],
-                                         at(pks[idx], c_tag, t),
-                                         Implies(
-                                             at(pks[idx], cts[kdx], t),
-                                             cts[kdx] == c_tag)))),
-                                 And(
-                                     Not(at(pks[idx], cts[kdx], t)),
+        for idx in range(np):
+            for jdx in range(idx):
+                s.add(pks[idx] != pks[jdx])
+
+        # move(airplane a, time t) := loc(a, t) != loc(a, t+1)
+        s.add(ForAll([a], ForAll([t], move(a, t) == (loc(a, t) != loc(a, t + 1)))))
+
+        # For any package at any time there exists one and only airplane/city where it is located on/at.
+        s.add(ForAll([p], ForAll([t],
+                                 Xor(
                                      And(
-                                         on(pks[idx], a_tag, t),
-                                         Implies(
-                                             on(pks[idx], aps[jdx], t),
-                                             aps[jdx] == a_tag))))))
+                                         ForAll([a], Not(on(p, a, t))),
+                                         Exists([c_tag], And(
+                                             at(p, c_tag, t),
+                                             ForAll([c],
+                                                    Or(
+                                                 Not(at(p, c, t)),
+                                                 c == c_tag))))),
+                                     And(
+                                         ForAll([c], Not(at(p, c, t))),
+                                         Exists([a_tag], And(
+                                             on(p, a_tag, t),
+                                             ForAll([a],
+                                                    Or(
+                                                 Not(on(p, a, t)),
+                                                 a == a_tag)))))))))
+        '''
+        # Any plane at any time must be present at one and only city -- HARD
+        s.add(ForAll([a], ForAll([t], Exists([c_tag],
+                                             And(loc(a, t) == c_tag,
+                                                 ForAll([c], Or(loc(a, t) != c, c == c_tag)))))))
+        '''
+        # Rule of load: Airplane must be at the same city as the package and not move. Package must load to airplane at t+1.
+        s.add(ForAll([p], ForAll([a], ForAll([t],
+                                             load(p, a, t) == And(Not(move(a, t)), at(p, loc(a, t), t), on(p, a, t+1))))))
 
-    '''
-    # move(airplane a, time t) := loc(a, t) != loc(a, t+1)
-    s.add(ForAll([a], ForAll([t], move(a, t) == (loc(a, t) != loc(a, t + 1)))))
+        # Rule of unload: Airplane must not move and hold a package. Package must unload to airplane's location at t+1.
+        s.add(ForAll([p], ForAll([a], ForAll([t],
+                                             unload(p, a, t) == And(Not(move(a, t)), on(p, a, t), at(p, loc(a, t), t+1))))))
+        '''
+        # Rule of Movement: Any plane at any time must either move or load/unload any number of packages (but not both) -- HARD
+        s.add(ForAll([a], ForAll([t], Xor(move(a, t), Or(Exists([p], load(p, a, t)), Exists([p], unload(p, a, t)))))))
+        '''
+        res = s.check()
+        if res == sat:
+            print "SAT\n"
+            m = s.model()
 
-    # Any plane at any time must be present at one and only city
-    s.add(ForAll([a], ForAll([t], Exists([c_tag],
-                                         And(loc(a, t) == c_tag, ForAll([c], Or(loc(a, t) != c, c == c_tag)))))))
+        elif res == unknown:
+            print "Got unknown from Z3 for t_max = %d, trying a larger t_max\n" % (t_max)
+        else:
+            print "UNSAT for t_max = %d, trying a larger t_max\n" % (t_max)
+        t_max += 1
 
-    # For any package at any time there exists one and only airplane/city where it is located on/at.
-    s.add(ForAll([p], ForAll([t],
-                             Xor(
-                                 And(
-                                     ForAll([a], Not(on(p, a, t))),
-                                     Exists([c_tag], And(
-                                         at(p, c_tag, t),
-                                         ForAll([c], Implies(
-                                             at(p, c, t),
-                                             c == c_tag))))),
-                                 And(
-                                     ForAll([c], Not(at(p, c, t))),
-                                     Exists([a_tag], And(
-                                         on(p, a_tag, t),
-                                         ForAll([a], Implies(
-                                             on(p, a, t),
-                                             a == a_tag)))))))))
-
-    # Rule of load: Airplane must be at the same city as the package and not move. Package must load to airplane at t+1.
-    s.add(ForAll([p], ForAll([a], ForAll([t],
-                                         load(p, a, t) == And(Not(move(a, t)), at(p, loc(a, t), t), on(p, a, t+1))))))
-
-    # Rule of unload: Airplane must not move and hold a package. Package must unload to airplane's location at t+1.
-    s.add(ForAll([p], ForAll([a], ForAll([t],
-                                         unload(p, a, t) == And(Not(move(a, t)), on(p, a, t), at(p, loc(a, t), t+1))))))
-
-    # Rule of Movement: Any plane at any time must either move or load/unload any number of packages (but not both)
-    s.add(ForAll([a], ForAll([t], Xor(move(a, t), Exists([p], Or(load(p, a, t), unload(p, a, t)))))))
-    '''
-
-    res = s.check()
-    if res == sat:
-        print "SAT\n"
-        m = s.model()
-    elif res == unknown:
-        print "Got unknown"
-    else:
-        print "UNSAT\n"
     city_packages = []
     city_airplanes = []
     airplane_packages = []
+
+    for t in range(t_max + 1):
+        city_packages.insert(t, [])
+        city_airplanes.insert(t, [])
+        airplane_packages.insert(t, [])
+        for nc_idx in range(nc):
+            city_packages[t].insert(nc_idx, [])
+            city_airplanes[t].insert(nc_idx, [])
+
+            # Build city_packages
+            for np_idx in range(np):
+                if is_true(m.eval(at(pks[np_idx], cts[nc_idx], t))):
+                    print "Package %d in city %d in time %d" % (np_idx, nc_idx, t)
+                    city_packages[t][nc_idx].append(np_idx)
+
+            # Build city_airplanes and airplane_packages
+            for na_idx in range(na):
+                airplane_packages[t].insert(na_idx, [])
+
+                if is_true(m.eval(loc(aps[na_idx], t) == cts[nc_idx])):
+                    print "Airplane %d in city %d in time %d" % (na_idx, nc_idx, t)
+                    city_airplanes[t][nc_idx].append(na_idx)
+                for np_idx in range(np):
+                    if is_true(m.eval(on(pks[np_idx], aps[na_idx], t))):
+                        print "Package %d on airplane %d in time %d" % (np_idx, na_idx, t)
+                        airplane_packages[t][na_idx].insert(np_idx)
+
+    #pprint.pprint (city_packages)
+    #pprint.pprint (airplane_packages)
     return city_packages, city_airplanes, airplane_packages
 
 
 if __name__ == '__main__':
     print_problem(**example_problem)
 
-    #city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
-    get_transport_plan(**example_problem)
+    city_packages, city_airplanes, airplane_packages = get_transport_plan(**example_problem)
+    #get_transport_plan(**example_problem)
 
+    print_plan(city_packages, city_airplanes, airplane_packages)
     #print_plan(**example_solution)
 
     #
