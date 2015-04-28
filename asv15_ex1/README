@@ -51,6 +51,28 @@ All packages start at their source cities, all packages end at their destination
 for all p
   at(p, src(p), 0)
 
+Package can only move when it's loaded on an airplane
+for all time t
+  for all packages p
+    Xor(
+      at(p, c, t) and at(p, c, t + 1),
+      Exists aps so that at(p, c, t) and load(p, a, t + 1)
+    )
+
+Package cannot be in more than one city
+For any time t
+  For any package p
+    Exists c' so that at(p, c', t) implies that for all c if c != c' then Not(at(p, c, t)
+    Exists a' so that on(p, a', t) implies that for all a if a != a' then Not(on(p, a, t)
+
+Package cannot be on more than one plane
+Airplane cannot be in more than one city
+
+itayp: Looks like an overkill - we should start with small t_max and increment it, so the
+ condition could be:
+for all p
+  at(p, dst(p), t_max)
+
 exists t'
   for all p
     at(p, dst(p), t')

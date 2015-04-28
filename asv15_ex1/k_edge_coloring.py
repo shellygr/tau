@@ -90,7 +90,6 @@ def get_k_edge_coloring(k, V, E):
                 # if E1, E2 and E3 all have a common node V, the constrains would be:
                 # (Or(Not(E1, c), Not(E2, c)), (Or(Not(E1, c), Not(E3, c)), (Or(Not(E2, c), Not(E3, c))
                 for v1, v2 in relevant_edges:
-                    # TODO: This naive solution probably creates some duplicates, can we cut them down?
                     for v1_tag, v2_tag in relevant_edges:
 
                         # Do not add constraint for the same edge
@@ -163,7 +162,6 @@ def get_k_edge_coloring_core(k, V, E):
                 # if E1, E2 and E3 all have a common node V, the constrains would be:
                 # (Or(Not(E1, c), Not(E2, c)), (Or(Not(E1, c), Not(E3, c)), (Or(Not(E2, c), Not(E3, c))
                 for v1, v2 in relevant_edges:
-                    # TODO: This naive solution probably creates some duplicates, can we cut them down?
                     for v1_tag, v2_tag in relevant_edges:
 
                         # Do not add constraint for the same edge
