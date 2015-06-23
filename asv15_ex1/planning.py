@@ -129,6 +129,7 @@ def get_transport_plan(nc, np, na, src, dst, start):
     loc = Function('loc', airplane, time, city)
     at = Function('at', package, city, time, boolean)
     on = Function('on', package, airplane, time, boolean)
+    # move = Function('move', airplane, time, boolean)
 
     # Declaring consts
     cts = [Const('c{}'.format(idx), city) for idx in range(nc)]
@@ -136,7 +137,6 @@ def get_transport_plan(nc, np, na, src, dst, start):
     aps = [Const('a{}'.format(idx), airplane) for idx in range(na)]
 
     t = Const('t', time)
-    #a = Const('a', airplane)
 
     # Model
     m = None
@@ -166,18 +166,21 @@ def get_transport_plan(nc, np, na, src, dst, start):
             # All airplanes start at their source cities
             s.add(loc(aps[na_idx], 0) == cts[start[na_idx]])
 
+        # move(airplane a, time t) := loc(a, t) != loc(a, t+1) # leads to getting unknown
+        # for na_idx in range(na): s.add(ForAll(t, move(aps[na_idx], t) == (loc(aps[na_idx], t) != loc(aps[na_idx], t + 1))))
+
         # Package restrictions to ensure package can only exist at one place in a time
         for t_idx in range(t_max + 1):
             for np_idx in range(np):
 
                 # For each two cities, make sure the package only exists in one city at a time
-                for nc_idx1 in range(nc):
-                    for nc_idx2 in range(nc_idx1 + 1, nc):
-                        s.add(Not(And(at(pks[np_idx], cts[nc_idx1], t_idx), at(pks[np_idx], cts[nc_idx2], t_idx))))
+                for nc_kdx in range(nc):
+                    for nc_idx2 in range(nc_kdx + 1, nc):
+                        s.add(Not(And(at(pks[np_idx], cts[nc_kdx], t_idx), at(pks[np_idx], cts[nc_idx2], t_idx))))
 
                     # Now make sure package cannot be both in a city and on an airplane at the same time
                     for na_idx in range(na):
-                        s.add(Not(And(at(pks[np_idx], cts[nc_idx1], t_idx), on(pks[np_idx], aps[na_idx], t_idx))))
+                        s.add(Not(And(at(pks[np_idx], cts[nc_kdx], t_idx), on(pks[np_idx], aps[na_idx], t_idx))))
 
                 # For each two airplanes, make sure the package is only loaded on one airplane at a time
                 for na_idx1 in range(nc):
@@ -189,20 +192,20 @@ def get_transport_plan(nc, np, na, src, dst, start):
         for np_idx in range(np):
             for nc_idx in range(nc):
                 # First direction
-                s.add(ForAll(t, Implies(at(pks[np_idx], cts[nc_idx], t + 1),
-                                        Or(at(pks[np_idx], cts[nc_idx], t),
-                                           Or([And(on(pks[np_idx], ap, t),
-                                                   loc(ap, t) == cts[nc_idx],
-                                                   loc(ap, t + 1) == cts[nc_idx])
-                                               for ap in aps])))))
+                s.add(ForAll(t, Or(Not(at(pks[np_idx], cts[nc_idx], t + 1)),
+                                   Or(
+                                       Or([And(on(pks[np_idx], ap, t),
+                                               loc(ap, t) == cts[nc_idx],
+                                               loc(ap, t + 1) == cts[nc_idx])
+                                           for ap in aps]), at(pks[np_idx], cts[nc_idx], t)))))
 
                 # Second direction
-                s.add(ForAll(t, Implies(at(pks[np_idx], cts[nc_idx], t),
-                                        Or(at(pks[np_idx], cts[nc_idx], t + 1),
-                                           Or([And(on(pks[np_idx], ap, t + 1),
-                                                   loc(ap, t + 1) == cts[nc_idx],
-                                                   loc(ap, t) == cts[nc_idx])
-                                               for ap in aps])))))
+                s.add(ForAll(t, Or(Not(at(pks[np_idx], cts[nc_idx], t)),
+                                   Or(
+                                       Or([And(on(pks[np_idx], ap, t + 1),
+                                               loc(ap, t + 1) == cts[nc_idx],
+                                               loc(ap, t) == cts[nc_idx])
+                                           for ap in aps]), at(pks[np_idx], cts[nc_idx], t + 1)))))
 
         # Load and unload restrictions
         for np_idx in range(np):
